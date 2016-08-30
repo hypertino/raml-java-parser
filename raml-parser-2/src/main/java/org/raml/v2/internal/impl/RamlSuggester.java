@@ -74,13 +74,19 @@ public class RamlSuggester
         final List<Suggestion> suggestions = getSuggestions(parsingContext, document, offset, location);
         if (content.isEmpty())
         {
-            result.addAll(suggestions);
+            for (Suggestion suggestion : suggestions)
+            {
+                if (!suggestion.getValue().contains("feed:"))
+                {
+                    result.add(suggestion);
+                }
+            }
         }
         else
         {
             for (Suggestion suggestion : suggestions)
             {
-                if (suggestion.getValue().startsWith(content))
+                if (suggestion.getValue().startsWith(content) && !suggestion.getValue().contains("feed:"))
                 {
                     result.add(suggestion);
                 }
