@@ -744,7 +744,12 @@ public abstract class BaseRamlGrammar extends BaseGrammar
                 string("post"),
                 string("delete"),
                 string("options"),
-                string("head"));
+                string("head"),
+                string("feed:get"),
+                string("feed:post"),
+                string("feed:put"),
+                string("feed:patch"),
+                string("feed:delete"));
     }
 
     protected AnyOfRule anyOptionalMethod()
