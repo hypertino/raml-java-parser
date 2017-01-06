@@ -3,7 +3,7 @@
     <parent>
         <groupId>org.raml</groupId>
         <artifactId>raml-parser-parent</artifactId>
-        <version>1.0.1-SNAPSHOT</version>
+        <version>1.0.5-SNAPSHOT</version>
     </parent>
     <artifactId>raml-parser-2</artifactId>
     <packaging>jar</packaging>
@@ -27,6 +27,7 @@
                                     <goal>shade</goal>
                                 </goals>
                                 <configuration>
+                                    <finalName>${project.artifactId}-${project.version}-full</finalName>
                                     <transformers>
                                         <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
                                             <mainClass>org.raml.v2.internal.impl.RamlValidator</mainClass>

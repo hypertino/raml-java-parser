@@ -19,6 +19,7 @@ import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.Matchers.closeTo;
+import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertFalse;
@@ -30,6 +31,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.List;
 
+import org.hamcrest.MatcherAssert;
 import org.junit.Test;
 import org.raml.v2.api.model.common.ValidationResult;
 import org.raml.v2.api.model.v10.api.Api;
@@ -37,6 +39,7 @@ import org.raml.v2.api.model.v10.api.DocumentationItem;
 import org.raml.v2.api.model.v10.bodies.Response;
 import org.raml.v2.api.model.v10.datamodel.ArrayTypeDeclaration;
 import org.raml.v2.api.model.v10.datamodel.ExampleSpec;
+import org.raml.v2.api.model.v10.datamodel.ExternalTypeDeclaration;
 import org.raml.v2.api.model.v10.datamodel.IntegerTypeDeclaration;
 import org.raml.v2.api.model.v10.datamodel.ObjectTypeDeclaration;
 import org.raml.v2.api.model.v10.datamodel.StringTypeDeclaration;
@@ -56,7 +59,7 @@ import org.raml.v2.api.model.v10.security.SecurityScheme;
 import org.raml.v2.api.model.v10.security.SecuritySchemePart;
 import org.raml.v2.api.model.v10.security.SecuritySchemeRef;
 import org.raml.v2.api.model.v10.security.SecuritySchemeSettings;
-import org.raml.v2.api.model.v10.system.types.AnnotableSimpleType;
+import org.raml.v2.api.model.v10.system.types.AnnotableStringType;
 
 public class SpecInterfacesV10TestCase
 {
@@ -104,9 +107,10 @@ public class SpecInterfacesV10TestCase
         assertThat(api.title().value(), is("api title"));
         assertThat(api.description().value(), is("api description"));
         assertScalarAnnotation(api.title(), "title");
-        assertThat(api.version().value(), is("v1"));
+        assertThat(api.version().value(), is("1.0"));
+        assertThat(api.version().value(), instanceOf(String.class));
         assertThat(api.version().annotations(), hasSize(0));
-        assertThat(api.baseUri().value(), is("http://base.uri/{version}/{param1}"));
+        assertThat(api.baseUri().value(), is("http://base.uri/{version}/{param1}/{param2}/{param3}/{param4}"));
         assertBaseUriParameters(api.baseUriParameters());
         assertThat(api.protocols().size(), is(2));
         assertThat(api.protocols().get(0), is("HTTP"));
@@ -129,7 +133,7 @@ public class SpecInterfacesV10TestCase
 
     private void assertTypes(List<TypeDeclaration> types)
     {
-        assertThat(types, hasSize(4));
+        assertThat(types, hasSize(7));
 
         // object type
         ObjectTypeDeclaration user = (ObjectTypeDeclaration) types.get(0);
@@ -142,6 +146,10 @@ public class SpecInterfacesV10TestCase
         assertThat(properties, hasSize(5));
         assertUserProperties(properties);
         assertUserExamples(user.examples());
+        List<TypeDeclaration> parentTypesUser = user.parentTypes();
+        assertThat(parentTypesUser, hasSize(1));
+        assertThat(parentTypesUser.get(0).name(), is("object"));
+        assertThat(parentTypesUser.get(0).parentTypes(), hasSize(0));
 
         // inherited object type
         ObjectTypeDeclaration superUser = (ObjectTypeDeclaration) types.get(1);
@@ -154,11 +162,54 @@ public class SpecInterfacesV10TestCase
         assertThat(skills.maxItems(), is(3));
         assertThat(skills.type(), is("string[]"));
         assertThat(superUser.examples(), hasSize(0));
+        List<TypeDeclaration> parentTypesSuperUser = superUser.parentTypes();
+        assertThat(parentTypesSuperUser, hasSize(1));
+        assertThat(parentTypesSuperUser.get(0).name(), is("User"));
+        List<TypeDeclaration> parentTypesSuperUserUser = parentTypesSuperUser.get(0).parentTypes();
+        assertThat(parentTypesSuperUserUser, hasSize(1));
+        assertThat(parentTypesSuperUserUser.get(0).name(), is("object"));
+        assertThat(parentTypesSuperUserUser.get(0).parentTypes(), hasSize(0));
 
         // string type
         StringTypeDeclaration nString = (StringTypeDeclaration) types.get(3);
         assertThat(nString.maxLength(), is(10));
         assertThat(nString.pattern(), nullValue());
+        List<TypeDeclaration> parentTypesString = nString.parentTypes();
+        assertThat(parentTypesString, hasSize(1));
+        assertThat(parentTypesString.get(0).name(), is("string"));
+        assertThat(parentTypesString.get(0).parentTypes(), hasSize(0));
+
+        // json schema type
+        ExternalTypeDeclaration jsonSchema = (ExternalTypeDeclaration) types.get(4);
+        List<TypeDeclaration> parentTypesJson = jsonSchema.parentTypes();
+        assertThat(parentTypesJson, hasSize(1));
+        assertThat(parentTypesJson.get(0).name(), nullValue());
+        assertThat(parentTypesJson.get(0).parentTypes(), hasSize(0));
+
+        // Type with custom facets
+        TypeDeclaration myType = types.get(6);
+        MatcherAssert.assertThat(myType.name(), is("TypeWithCustomFacets"));
+
+        List<TypeDeclaration> facets = myType.facets();
+        TypeDeclaration facet1 = facets.get(0);
+        MatcherAssert.assertThat(facet1.name(), is("facet1"));
+        MatcherAssert.assertThat(facet1.type(), is("integer"));
+        MatcherAssert.assertThat(facet1.required(), is(false));
+
+        TypeDeclaration facet2 = facets.get(1);
+        MatcherAssert.assertThat(facet2.name(), is("facet2"));
+        MatcherAssert.assertThat(facet2.type(), is("integer"));
+        MatcherAssert.assertThat(facet2.required(), is(false));
+
+        TypeDeclaration facet3 = facets.get(2);
+        MatcherAssert.assertThat(facet3.name(), is("facet3?"));
+        MatcherAssert.assertThat(facet3.type(), is("integer"));
+        MatcherAssert.assertThat(facet3.required(), is(true));
+
+        TypeDeclaration facet4 = facets.get(3);
+        MatcherAssert.assertThat(facet4.name(), is("facet4?"));
+        MatcherAssert.assertThat(facet4.type(), is("integer"));
+        MatcherAssert.assertThat(facet4.required(), is(false));
     }
 
     private void assertUserProperties(List<TypeDeclaration> properties)
@@ -302,13 +353,29 @@ public class SpecInterfacesV10TestCase
 
     private void assertBaseUriParameters(List<TypeDeclaration> baseUriParameters)
     {
-        assertThat(baseUriParameters.size(), is(1));
+        assertThat(baseUriParameters.size(), is(4));
         TypeDeclaration param1 = baseUriParameters.get(0);
         assertThat(param1.name(), is("param1"));
         assertThat(param1.displayName().value(), is("Param 1"));
         assertThat(param1.description().value(), is("some description"));
         assertThat(param1.type(), is("string"));
         assertThat(param1.defaultValue(), nullValue());
+
+        TypeDeclaration param2 = baseUriParameters.get(1);
+        assertThat(param2.name(), is("param2"));
+        assertThat(param2.required(), is(false));
+        assertThat(param2.type(), is("string"));
+
+        TypeDeclaration param3 = baseUriParameters.get(2);
+        assertThat(param3.name(), is("param3?"));
+        assertThat(param3.required(), is(true));
+        assertThat(param3.type(), is("string"));
+
+        TypeDeclaration param4 = baseUriParameters.get(3);
+        assertThat(param4.name(), is("param4?"));
+        assertThat(param4.required(), is(false));
+        assertThat(param4.type(), is("string"));
+
         assertBaseUriExample(param1.example());
         assertThat(param1.required(), is(true));
 
@@ -332,7 +399,7 @@ public class SpecInterfacesV10TestCase
         assertThat(documentation.get(1).content().value(), is("multi\nline\n"));
     }
 
-    private void assertScalarAnnotation(AnnotableSimpleType<String> scalar, String value)
+    private void assertScalarAnnotation(AnnotableStringType scalar, String value)
     {
         assertThat(scalar.annotations().get(0).structuredValue().value().toString(), is(value));
     }
@@ -365,10 +432,17 @@ public class SpecInterfacesV10TestCase
         List<Resource> children = top.resources();
         assertThat(children.size(), is(1));
         Resource child = children.get(0);
-        assertThat(child.relativeUri().value(), is("/child"));
-        assertThat(child.resourcePath(), is("/top/child"));
+        assertThat(child.relativeUri().value(), is("/child/{childId}"));
+        assertThat(child.resourcePath(), is("/top/child/{childId}"));
         assertThat(child.parentResource().resourcePath(), is("/top"));
+        assertThat(child.uriParameters().get(0).name(), is("childId"));
+        assertThat(child.uriParameters().get(0).required(), is(false));
+        assertThat(child.uriParameters().get(1).name(), is("childId2?"));
+        assertThat(child.uriParameters().get(1).required(), is(true));
         assertSecuredBy(child.securedBy());
+        TypeDeclaration typeDeclaration = child.methods().get(0).body().get(0);
+        assertThat(typeDeclaration.name(), is("application/json"));
+        assertThat(typeDeclaration.type(), is("UserJson"));
     }
 
     private void assertResourceTypeRef(ResourceTypeRef resourceTypeRef)
@@ -417,18 +491,37 @@ public class SpecInterfacesV10TestCase
 
     private void assertQueryParameters(List<TypeDeclaration> queryParameters)
     {
-        assertThat(queryParameters.size(), is(2));
+        assertThat(queryParameters.size(), is(6));
         assertThat(queryParameters.get(0).validate("10").size(), is(0));
         assertThat(queryParameters.get(0).validate("10feet").size(), is(1));
         ArrayTypeDeclaration arrayType = (ArrayTypeDeclaration) queryParameters.get(1);
         assertThat(arrayType.validate("- a\n- 2\n").size(), is(0));
         assertTrue(arrayType.items() instanceof UnionTypeDeclaration);
+
+        assertThat(queryParameters.get(2).name(), is("three"));
+        assertThat(queryParameters.get(2).type(), is("integer"));
+        assertThat(queryParameters.get(2).required(), is(false));
+
+        assertThat(queryParameters.get(3).name(), is("four"));
+        assertThat(queryParameters.get(3).type(), is("integer"));
+        assertThat(queryParameters.get(3).required(), is(false));
+
+        assertThat(queryParameters.get(4).name(), is("five?"));
+        assertThat(queryParameters.get(4).type(), is("string"));
+        assertThat(queryParameters.get(4).required(), is(true));
+
+        assertThat(queryParameters.get(5).name(), is("six?"));
+        assertThat(queryParameters.get(5).type(), is("string"));
+        assertThat(queryParameters.get(5).required(), is(false));
     }
 
     private void assertHeaders(List<TypeDeclaration> headers)
     {
         assertThat(headers.size(), is(2));
         assertThat(headers.get(0).name(), is("one"));
+        assertThat(headers.get(0).validate("ten"), empty());
+        assertThat(headers.get(0).validate("10"), empty());
+        assertThat(headers.get(0).validate("{}"), empty());
         assertThat(headers.get(1).displayName().value(), is("The Second"));
     }
 

@@ -15,20 +15,25 @@
  */
 package org.raml.v2.internal.impl.v08.grammar;
 
-import javax.annotation.Nonnull;
-
 import org.raml.v2.internal.impl.commons.grammar.BaseRamlGrammar;
+import org.raml.v2.internal.impl.commons.nodes.ExternalSchemaTypeExpressionNode;
 import org.raml.v2.internal.impl.commons.nodes.TypeDeclarationNode;
+import org.raml.v2.internal.impl.commons.rule.SchemaDeclarationRule;
 import org.raml.v2.internal.impl.v08.nodes.DefaultParameterTypeValueNode;
+import org.raml.v2.internal.impl.v10.nodes.NativeTypeExpressionNode;
+import org.raml.v2.internal.impl.v10.nodes.factory.InlineTypeDeclarationFactory;
 import org.raml.v2.internal.impl.v10.nodes.factory.TypeExpressionReferenceFactory;
 import org.raml.v2.internal.impl.v10.rules.TypeDefaultValue;
+import org.raml.v2.internal.impl.v10.rules.TypeExpressionReferenceRule;
 import org.raml.v2.internal.impl.v10.type.TypeId;
 import org.raml.yagi.framework.grammar.rule.AnyOfRule;
 import org.raml.yagi.framework.grammar.rule.KeyValueRule;
-import org.raml.yagi.framework.grammar.rule.NodeFactory;
 import org.raml.yagi.framework.grammar.rule.ObjectRule;
 import org.raml.yagi.framework.grammar.rule.Rule;
 import org.raml.yagi.framework.grammar.rule.StringValueRule;
+import org.raml.yagi.framework.nodes.Node;
+
+import javax.annotation.Nonnull;
 
 public class Raml08Grammar extends BaseRamlGrammar
 {
@@ -37,14 +42,32 @@ public class Raml08Grammar extends BaseRamlGrammar
     protected ObjectRule mimeType()
     {
         return objectType()
-                           .with(field(string("schema"), scalarType()))
+                           .with(field(string("schema"), schemaOrReference()))
                            .with(field(string("formParameters"), formParameters()))
-                           .with(field(string("example"), scalarType()));
+                           .with(field(string("example"), scalarType()))
+                           .then(TypeDeclarationNode.class);
     }
 
     protected Rule formParameters()
     {
         return objectType().with(field(scalarType(), anyOf(parameter(), array(parameter()))));
+    }
+
+    private AnyOfRule schemaOrReference()
+    {
+        return anyOf(explicitSchema(), new TypeExpressionReferenceRule().then(new TypeExpressionReferenceFactory()));
+    }
+
+    private Rule explicitSchema()
+    {
+        return new SchemaDeclarationRule().then(ExternalSchemaTypeExpressionNode.class);
+    }
+
+    protected Rule schemas()
+    {
+        return objectType()
+                           .with(field(scalarType(), explicitSchema()))
+                           .then(TypeDeclarationNode.class);
     }
 
     @Override
@@ -76,30 +99,33 @@ public class Raml08Grammar extends BaseRamlGrammar
     @Override
     protected Rule parameter()
     {
-        return objectType()
-                           .with(typeField())
-                           .with(displayNameField())
-                           .with(descriptionField())
-                           .with(exampleField())
-                           .with(defaultField())
-                           .with(repeatField())
-                           .with(requiredField())
-                           .with(
-                                   when("type",
-                                           is(stringTypeLiteral())
-                                                                  .add(patternField())
-                                                                  .add(minLengthField())
-                                                                  .add(maxLengthField())
-                                                                  .add(enumField(scalarType())),
-                                           is(numericTypeLiteral())
-                                                                   .add(minimumField())
-                                                                   .add(maximumField())
-                                                                   .add(enumField(integerType())),
-                                           is(fileTypeLiteral())
-                                                                .add(minLengthField())
-                                                                .add(maxLengthField())
-                                   ).defaultValue(new DefaultParameterTypeValueNode())
-                           ).then(TypeDeclarationNode.class);
+        return anyOf(
+                // Needs to be wrapped with anyOf in order to allow two then clauses
+                anyOf(nullValue().then(NativeTypeExpressionNode.class)).then(new InlineTypeDeclarationFactory()),
+                objectType()
+                            .with(typeField())
+                            .with(displayNameField())
+                            .with(descriptionField())
+                            .with(exampleField())
+                            .with(defaultField())
+                            .with(repeatField())
+                            .with(requiredField())
+                            .with(
+                                    when("type",
+                                            is(stringTypeLiteral())
+                                                                   .add(patternField())
+                                                                   .add(minLengthField())
+                                                                   .add(maxLengthField())
+                                                                   .add(enumField(scalarType())),
+                                            is(numericTypeLiteral())
+                                                                    .add(minimumField())
+                                                                    .add(maximumField())
+                                                                    .add(enumField(integerType())),
+                                            is(fileTypeLiteral())
+                                                                 .add(minLengthField())
+                                                                 .add(maxLengthField())
+                                    ).defaultValue(new DefaultParameterTypeValueNode())
+                            ).then(TypeDeclarationNode.class));
     }
 
     private KeyValueRule defaultField()
@@ -179,25 +205,24 @@ public class Raml08Grammar extends BaseRamlGrammar
 
     private Rule typeOptions()
     {
-        AnyOfRule anyOfRule = anyOf(stringTypeLiteral(), numericTypeLiteral(), string("date"), fileTypeLiteral(), string("boolean"));
-        applyThen(anyOfRule, TypeExpressionReferenceFactory.class);
+        AnyOfRule anyOfRule = anyOf(nullValue(), stringTypeLiteral(), numericTypeLiteral(), string("date"), fileTypeLiteral(), string("boolean"));
+        applyThen(anyOfRule, NativeTypeExpressionNode.class);
         return anyOfRule;
-
     }
 
-    private void applyThen(AnyOfRule anyOf, Class<? extends NodeFactory> factoryClass)
+    private void applyThen(AnyOfRule anyOf, Class<? extends Node> nodeClass)
     {
         for (Rule rule : anyOf.getRules())
         {
             if (rule instanceof AnyOfRule)
             {
-                applyThen((AnyOfRule) rule, factoryClass);
+                applyThen((AnyOfRule) rule, nodeClass);
             }
             else
             {
                 try
                 {
-                    rule.then(factoryClass.newInstance());
+                    rule.then(nodeClass);
                 }
                 catch (Exception e)
                 {

@@ -15,9 +15,10 @@
  */
 package org.raml.v2.internal.impl.commons.rule;
 
+import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.github.fge.jackson.JsonLoader;
 import com.github.fge.jsonschema.core.exceptions.ProcessingException;
+import com.github.fge.jsonschema.core.report.LogLevel;
 import com.github.fge.jsonschema.core.report.ProcessingMessage;
 import com.github.fge.jsonschema.core.report.ProcessingReport;
 import com.github.fge.jsonschema.main.JsonSchema;
@@ -38,11 +39,19 @@ import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
 
+import static org.raml.yagi.framework.nodes.jackson.JsonUtils.parseJson;
+import static com.github.fge.jsonschema.core.report.LogLevel.ERROR;
+import static com.github.fge.jsonschema.core.report.LogLevel.WARNING;
+import static org.apache.commons.io.IOUtils.DIR_SEPARATOR_UNIX;
+
 /**
  * Validates a string node content with the specified json schema
  */
 public class JsonSchemaValidationRule extends Rule
 {
+    public static final String JSON_SCHEMA_FAIL_ON_WARNING_KEY = "raml.json_schema.fail_on_warning";
+    private final boolean FAIL_ON_WARNING = Boolean.valueOf(
+                                                   System.getProperty(JSON_SCHEMA_FAIL_ON_WARNING_KEY, "false"));
 
     private JsonSchema schema;
 
@@ -96,19 +105,30 @@ public class JsonSchemaValidationRule extends Rule
                 return ErrorNodeFactory.createInvalidJsonExampleNode("Source example is not valid: " + node);
             }
 
-            JsonNode json = JsonLoader.fromString(value);
+            JsonNode json = parseJson(value);
+
             ProcessingReport report = schema.validate(json);
-            if (!report.isSuccess())
+            Iterator<ProcessingMessage> iterator = report.iterator();
+            List<String> errors = Lists.newArrayList();
+            while (iterator.hasNext())
             {
-                Iterator<ProcessingMessage> iterator = report.iterator();
-                List<String> errors = Lists.newArrayList();
-                while (iterator.hasNext())
+                ProcessingMessage next = iterator.next();
+                LogLevel logLevel = next.getLogLevel();
+
+                if (logLevel.equals(ERROR) || (logLevel.equals(WARNING) && FAIL_ON_WARNING))
                 {
-                    ProcessingMessage next = iterator.next();
-                    errors.add(next.toString());
+                    errors.add(processErrorMessage(next.toString()));
                 }
+            }
+
+            if (!errors.isEmpty())
+            {
                 return ErrorNodeFactory.createInvalidJsonExampleNode("{\n" + Joiner.on(",\n").join(errors) + "\n}");
             }
+        }
+        catch (JsonParseException e)
+        {
+            return ErrorNodeFactory.createInvalidJsonExampleNode(e.getOriginalMessage());
         }
         catch (IOException | ProcessingException e)
         {
@@ -121,5 +141,29 @@ public class JsonSchemaValidationRule extends Rule
     public String getDescription()
     {
         return "JSON Schema validation rule";
+    }
+
+    private String processErrorMessage(String processingMessage)
+    {
+        final String SCHEMA_TEXT = "schema: {\"loadingURI\":\"";
+        final String POINTER_TEXT = "\"pointer\":\"";
+
+        int startOfSchema = processingMessage.indexOf(SCHEMA_TEXT);
+
+        // If it is true then loadingUri is present in the message and we have to modify it
+        if (startOfSchema >= 0)
+        {
+            int startOfPointer = processingMessage.indexOf(POINTER_TEXT);
+            String completeUri = processingMessage.substring(startOfSchema + SCHEMA_TEXT.length(), startOfPointer - 2);
+
+            // Finding the filename: It begins after the last '/' in the uri.
+            // If there is no '/', we display the entire processingMessage
+            String reducedSchemaURI = completeUri.substring(completeUri.lastIndexOf(DIR_SEPARATOR_UNIX) + 1);
+
+            // Replacing the complete URI with the reduced one
+            return processingMessage.replace(completeUri, reducedSchemaURI);
+        }
+
+        return processingMessage;
     }
 }

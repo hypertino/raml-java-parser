@@ -13,36 +13,35 @@
  * either express or implied. See the License for the specific
  * language governing permissions and limitations under the License.
  */
-package org.raml.v2.internal.impl.commons.phase;
+package org.raml.yagi.framework.model;
 
-import org.raml.yagi.framework.grammar.rule.ErrorNodeFactory;
+import com.google.common.base.Preconditions;
 import org.raml.yagi.framework.nodes.Node;
-import org.raml.yagi.framework.nodes.ReferenceNode;
-import org.raml.yagi.framework.phase.Transformer;
 
-
-public class ReferenceResolverTransformer implements Transformer
+public abstract class AbstractNodeModel<T extends Node> implements NodeModel
 {
+    protected final T node;
 
-
-    @Override
-    public boolean matches(Node node)
+    public AbstractNodeModel(T node)
     {
-        return node instanceof ReferenceNode;
+        Preconditions.checkNotNull(node);
+        this.node = node;
     }
 
     @Override
-    public Node transform(Node node)
+    public int hashCode()
     {
-        ReferenceNode referenceNode = (ReferenceNode) node;
-        Node refNode = referenceNode.getRefNode();
-        if (refNode == null)
+        return node.hashCode();
+    }
+
+    @Override
+    public boolean equals(Object obj)
+    {
+        if (!(obj instanceof NodeModel))
         {
-            return ErrorNodeFactory.createInvalidReferenceNode(referenceNode);
+            return false;
         }
-        else
-        {
-            return node;
-        }
+        final NodeModel nodeModel = (NodeModel) obj;
+        return getNode().equals(nodeModel.getNode());
     }
 }

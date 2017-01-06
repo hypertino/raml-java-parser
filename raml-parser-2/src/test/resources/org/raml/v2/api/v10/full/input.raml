@@ -3,8 +3,8 @@ title:
     value: api title
     (basic): title
 description: api description
-version: v1
-baseUri: http://base.uri/{version}/{param1}
+version: 1.0
+baseUri: http://base.uri/{version}/{param1}/{param2}/{param3}/{param4}
 mediaType: application/json
 protocols: [HTTP, HTTPS]
 
@@ -15,6 +15,14 @@ baseUriParameters:
         type: string
         maxLength: 10
         example: one
+    param2?:
+        type: string
+    param3?:
+        type: string
+        required: true
+    param4?:
+        type: string
+        required: false
 
 documentation:
     - title: doc title 1
@@ -65,6 +73,41 @@ types:
         minItems: 2
     nString:
         maxLength: 10
+    UserJson: |
+        {
+         "$schema": "http://json-schema.org/draft-04/schema",
+         "type": "object",
+         "properties": {
+           "firstname":  { "type": "string" },
+           "lastname":  { "type": "string" },
+           "age":  { "type": "integer" }
+         },
+         "required": [ "firstname", "lastname" ]
+        }
+    UserXml: |
+        <xs:schema attributeFormDefault="unqualified"
+                  elementFormDefault="qualified"
+                  xmlns:xs="http://www.w3.org/2001/XMLSchema">
+         <xs:element name="api-request">
+           <xs:complexType>
+             <xs:sequence>
+               <xs:element type="xs:string" name="input"/>
+             </xs:sequence>
+           </xs:complexType>
+         </xs:element>
+        </xs:schema>
+    TypeWithCustomFacets:
+        type: string
+        facets:
+            facet1?: integer
+            facet2?:
+                type: integer
+            facet3?:
+                type: integer
+                required: true
+            facet4?:
+                type: integer
+                required: false
 
 traits:
     traitOne:
@@ -163,6 +206,15 @@ annotationTypes:
                 type: number
             two:
                 type: (string|number)[]
+            three?: integer
+            four?:
+                type: integer
+            five?:
+                type: string
+                required: true
+            six?:
+                type: string
+                required: false
         headers: &headersGet
             one:
             two:
@@ -206,6 +258,14 @@ annotationTypes:
                     text/plain: ~
 
 
-    /child:
+    /child/{childId}:
         securedBy: [oauth_2_0, oauth_1_0, null]
         description: child description
+        uriParameters:
+            childId?:
+                type: integer
+            childId2?:
+                required: true
+        post:
+            body:
+                schema: UserJson

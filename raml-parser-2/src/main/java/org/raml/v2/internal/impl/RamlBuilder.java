@@ -18,8 +18,9 @@ package org.raml.v2.internal.impl;
 import static org.raml.v2.internal.impl.commons.RamlVersion.RAML_10;
 
 import java.io.File;
-import java.io.FileReader;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.Reader;
 import java.io.StringReader;
 
@@ -31,6 +32,7 @@ import org.raml.v2.api.loader.ResourceLoader;
 import org.raml.v2.internal.impl.commons.RamlHeader;
 import org.raml.v2.internal.impl.v08.Raml08Builder;
 import org.raml.v2.internal.impl.v10.Raml10Builder;
+import org.raml.v2.internal.utils.StreamUtils;
 import org.raml.yagi.framework.grammar.rule.ErrorNodeFactory;
 import org.raml.yagi.framework.nodes.Node;
 
@@ -73,9 +75,9 @@ public class RamlBuilder
     {
         this.resourceLoader = new CompositeResourceLoader(resourceLoader, new FileResourceLoader(ramlFile.getParent()));
         this.actualPath = ramlFile.getPath();
-        try (FileReader reader = new FileReader(ramlFile))
+        try (InputStream inputStream = new FileInputStream(ramlFile))
         {
-            return build(reader, this.resourceLoader, ramlFile.getName());
+            return build(StreamUtils.reader(inputStream), this.resourceLoader, ramlFile.getName());
         }
         catch (IOException ioe)
         {
@@ -103,6 +105,10 @@ public class RamlBuilder
         try
         {
             final String stringContent = IOUtils.toString(content);
+
+            // In order to be consistent between different OS, we normalize the resource location
+            resourceLocation = normalizeResourceLocation(resourceLocation);
+
             RamlHeader ramlHeader = RamlHeader.parse(stringContent);
             Node result;
             if (RAML_10 == ramlHeader.getVersion())
@@ -139,6 +145,11 @@ public class RamlBuilder
         {
             IOUtils.closeQuietly(content);
         }
+    }
+
+    private String normalizeResourceLocation(String resourceLocation)
+    {
+        return resourceLocation.replace("\\", "/");
     }
 
     public ResourceLoader getResourceLoader()

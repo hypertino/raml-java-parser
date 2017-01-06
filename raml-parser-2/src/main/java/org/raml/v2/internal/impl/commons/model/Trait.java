@@ -18,14 +18,11 @@ package org.raml.v2.internal.impl.commons.model;
 import org.raml.v2.internal.impl.commons.nodes.TraitNode;
 import org.raml.yagi.framework.nodes.Node;
 
-public class Trait extends Annotable
+public class Trait extends Annotable<TraitNode>
 {
-
-    private TraitNode node;
-
     public Trait(TraitNode node)
     {
-        this.node = node;
+        super(node);
     }
 
     @Override

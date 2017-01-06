@@ -16,10 +16,8 @@
 package org.raml.v2.api.model.v10.api;
 
 import org.raml.v2.api.model.v10.common.Annotable;
-import org.raml.v2.api.model.v10.system.types.AnnotableSimpleType;
 import org.raml.v2.api.model.v10.system.types.MarkdownString;
-import org.raml.v2.api.model.v10.system.types.StringType;
-
+import org.raml.v2.api.model.v10.system.types.AnnotableStringType;
 
 public interface DocumentationItem extends Annotable
 {
@@ -27,7 +25,7 @@ public interface DocumentationItem extends Annotable
     /**
      * Title of documentation section
      **/
-    AnnotableSimpleType<String> title();
+    AnnotableStringType title();
 
 
     /**

@@ -27,8 +27,11 @@ import org.raml.v2.internal.impl.commons.phase.DuplicatedPathsTransformer;
 import org.raml.v2.internal.impl.commons.phase.IncludeResolver;
 import org.raml.v2.internal.impl.commons.phase.RemoveTopLevelSequencesTransformer;
 import org.raml.v2.internal.impl.commons.phase.ResourceTypesTraitsTransformer;
+import org.raml.v2.internal.impl.commons.phase.SchemaValidationTransformer;
 import org.raml.v2.internal.impl.commons.phase.StringTemplateExpressionTransformer;
 import org.raml.v2.internal.impl.v08.grammar.Raml08Grammar;
+import org.raml.v2.internal.impl.v08.phase.ReferenceResolverTransformerV08;
+import org.raml.v2.internal.impl.v10.phase.MediaTypeInjectionPhase;
 import org.raml.v2.internal.utils.RamlNodeUtils;
 import org.raml.yagi.framework.nodes.Node;
 import org.raml.yagi.framework.nodes.snakeyaml.NodeParser;
@@ -72,14 +75,22 @@ public class Raml08Builder
         Raml08Grammar raml08Grammar = new Raml08Grammar();
         final GrammarPhase grammar = new GrammarPhase(raml08Grammar.raml());
 
+        final TransformationPhase referenceCheck = new TransformationPhase(new ReferenceResolverTransformerV08());
+
         // Applies resourceTypes and Traits Library
         final TransformationPhase traitsAndResourceTypes = new TransformationPhase(new ResourceTypesTraitsTransformer(raml08Grammar));
 
         // Check duplicate paths
         final TransformationPhase duplicatePaths = new TransformationPhase(new DuplicatedPathsTransformer());
 
+        // Inject default media types
+        final MediaTypeInjectionPhase mediaTypeInjection = new MediaTypeInjectionPhase();
+
+        // Json Schema and XSD validation
+        final TransformationPhase schemaValidationPhase = new TransformationPhase(new SchemaValidationTransformer(resourceLoader));
+
         // Schema Types example validation
-        return Arrays.asList(includesAndParmeters, grammar, removeSequences, traitsAndResourceTypes, duplicatePaths);
+        return Arrays.asList(includesAndParmeters, grammar, removeSequences, referenceCheck, traitsAndResourceTypes, duplicatePaths, mediaTypeInjection, schemaValidationPhase);
 
     }
 }

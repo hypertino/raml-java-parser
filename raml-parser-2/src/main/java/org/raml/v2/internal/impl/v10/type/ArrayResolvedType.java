@@ -15,6 +15,7 @@
  */
 package org.raml.v2.internal.impl.v10.type;
 
+import org.raml.v2.internal.impl.commons.nodes.TypeExpressionNode;
 import org.raml.v2.internal.impl.commons.rule.RamlErrorNodeFactory;
 import org.raml.v2.internal.impl.commons.type.ResolvedCustomFacets;
 import org.raml.v2.internal.impl.commons.type.SchemaBasedResolvedType;
@@ -33,6 +34,9 @@ import static org.raml.v2.internal.impl.v10.grammar.Raml10Grammar.UNIQUE_ITEMS_K
 import static org.raml.yagi.framework.util.NodeSelector.selectBooleanValue;
 import static org.raml.yagi.framework.util.NodeSelector.selectIntValue;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
 public class ArrayResolvedType extends XmlFacetsCapableType
 {
 
@@ -41,7 +45,7 @@ public class ArrayResolvedType extends XmlFacetsCapableType
     private Integer minItems;
     private Integer maxItems;
 
-    public ArrayResolvedType(TypeDeclarationNode node, XmlFacets xmlFacets, ResolvedType items, Boolean uniqueItems, Integer minItems, Integer maxItems, ResolvedCustomFacets customFacets)
+    public ArrayResolvedType(TypeExpressionNode node, XmlFacets xmlFacets, ResolvedType items, Boolean uniqueItems, Integer minItems, Integer maxItems, ResolvedCustomFacets customFacets)
     {
         super(node, xmlFacets, customFacets);
         this.items = items;
@@ -50,18 +54,18 @@ public class ArrayResolvedType extends XmlFacetsCapableType
         this.maxItems = maxItems;
     }
 
-    public ArrayResolvedType(TypeDeclarationNode node, ResolvedType items)
+    public ArrayResolvedType(TypeExpressionNode node, ResolvedType items)
     {
         this(node);
         this.items = items;
     }
 
-    public ArrayResolvedType(TypeDeclarationNode node)
+    public ArrayResolvedType(TypeExpressionNode node)
     {
         super(node, new ResolvedCustomFacets(MIN_ITEMS_KEY_NAME, MAX_ITEMS_KEY_NAME, UNIQUE_ITEMS_KEY_NAME, ITEMS_KEY_NAME));
     }
 
-    private ArrayResolvedType copy()
+    protected ArrayResolvedType copy()
     {
         return new ArrayResolvedType(getTypeDeclarationNode(), getXmlFacets().copy(), items, uniqueItems, minItems, maxItems, customFacets.copy());
     }
@@ -149,8 +153,14 @@ public class ArrayResolvedType extends XmlFacetsCapableType
         return visitor.visitArray(this);
     }
 
+    @Nonnull
     public ResolvedType getItems()
     {
+        if (items == null)
+        {
+            // If array is not typed (either through 'items' or an expression) then items in the array can be anything
+            items = new AnyResolvedType(getTypeDeclarationNode());
+        }
         return items;
     }
 
@@ -200,4 +210,12 @@ public class ArrayResolvedType extends XmlFacetsCapableType
             this.maxItems = maxItems;
         }
     }
+
+    @Nullable
+    @Override
+    public String getBuiltinTypeName()
+    {
+        return TypeId.ARRAY.getType();
+    }
+
 }

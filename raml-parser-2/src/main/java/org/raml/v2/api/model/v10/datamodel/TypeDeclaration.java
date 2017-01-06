@@ -20,8 +20,8 @@ import java.util.List;
 import org.raml.v2.api.model.common.ValidationResult;
 import org.raml.v2.api.model.v10.common.Annotable;
 import org.raml.v2.api.model.v10.declarations.AnnotationTarget;
-import org.raml.v2.api.model.v10.system.types.AnnotableSimpleType;
 import org.raml.v2.api.model.v10.system.types.MarkdownString;
+import org.raml.v2.api.model.v10.system.types.AnnotableStringType;
 
 
 public interface TypeDeclaration extends Annotable
@@ -36,13 +36,19 @@ public interface TypeDeclaration extends Annotable
     /**
      * The displayName attribute specifies the type display name. It is a friendly name used only for  display or documentation purposes. If displayName is not specified, it defaults to the element's key (the name of the property itself).
      **/
-    AnnotableSimpleType<String> displayName();
+    AnnotableStringType displayName();
 
 
     /**
      * A base type which the current type extends, or more generally a type expression.
      **/
     String type();
+
+
+    /**
+     * The list of inherited types
+     */
+    List<TypeDeclaration> parentTypes();
 
 
     /**
@@ -88,6 +94,12 @@ public interface TypeDeclaration extends Annotable
      * @return the list of errors if any or an empty list if validation succeeded
      */
     List<ValidationResult> validate(String payload);
+
+
+    /**
+     * Gets the list of user-defined facets
+     */
+    List<TypeDeclaration> facets();
 
 
     XMLFacetInfo xml();
