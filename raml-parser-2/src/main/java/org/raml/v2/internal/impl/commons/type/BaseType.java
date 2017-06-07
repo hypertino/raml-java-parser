@@ -17,28 +17,33 @@ package org.raml.v2.internal.impl.commons.type;
 
 import java.util.List;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import org.raml.v2.internal.impl.commons.nodes.TypeDeclarationField;
 import org.raml.v2.internal.impl.commons.nodes.TypeDeclarationNode;
 import org.raml.v2.internal.impl.commons.nodes.TypeExpressionNode;
 import org.raml.v2.internal.impl.v10.type.UnionResolvedType;
+import org.raml.yagi.framework.nodes.SimpleTypeNode;
 
 public abstract class BaseType implements ResolvedType
 {
 
     protected ResolvedCustomFacets customFacets;
-    private TypeExpressionNode typeNode;
+    private TypeExpressionNode typeExpressionNode;
+    private String typeName;
 
-    public BaseType(TypeExpressionNode typeNode, ResolvedCustomFacets customFacets)
+    public BaseType(String typeName, TypeExpressionNode typeExpressionNode, ResolvedCustomFacets customFacets)
     {
-        this.typeNode = typeNode;
+        this.typeExpressionNode = typeExpressionNode;
         this.customFacets = customFacets;
+        this.typeName = typeName;
     }
 
     public ResolvedType setTypeNode(TypeExpressionNode typeNode)
     {
         BaseType copy = copy();
-        copy.typeNode = typeNode;
+        copy.typeExpressionNode = typeNode;
         return copy;
     }
 
@@ -48,6 +53,18 @@ public abstract class BaseType implements ResolvedType
     public ResolvedCustomFacets customFacets()
     {
         return customFacets;
+    }
+
+    protected void overwriteFacets(BaseType from, TypeDeclarationNode node)
+    {
+        if (node.getParent() instanceof TypeDeclarationField)
+        {
+            from.typeName = ((SimpleTypeNode) ((TypeDeclarationField) node.getParent()).getKey()).getLiteralValue();
+        }
+        else if (!(node.getSource() instanceof SimpleTypeNode))
+        {
+            from.typeName = getBuiltinTypeName();
+        }
     }
 
     @Override
@@ -77,11 +94,16 @@ public abstract class BaseType implements ResolvedType
         return this.getClass().equals(resolvedType.getClass());
     }
 
+    public void setTypeName(String typeName)
+    {
+        this.typeName = typeName;
+    }
+
     @Nullable
     @Override
     public String getTypeName()
     {
-        return getTypeDeclarationNode() instanceof TypeDeclarationNode ? ((TypeDeclarationNode) getTypeDeclarationNode()).getTypeName() : null;
+        return typeName;
     }
 
     @Nullable
@@ -92,9 +114,9 @@ public abstract class BaseType implements ResolvedType
     }
 
     @Override
-    public TypeExpressionNode getTypeDeclarationNode()
+    public TypeExpressionNode getTypeExpressionNode()
     {
-        return typeNode;
+        return typeExpressionNode;
     }
 
 
@@ -103,4 +125,18 @@ public abstract class BaseType implements ResolvedType
     {
 
     }
+
+    @Nonnull
+    public static String getTypeName(TypeExpressionNode typeExpressionNode, String defaultName)
+    {
+        if (typeExpressionNode.getParent() instanceof TypeDeclarationField)
+        {
+            return ((SimpleTypeNode) ((TypeDeclarationField) typeExpressionNode.getParent()).getKey()).getLiteralValue();
+        }
+        else
+        {
+            return defaultName;
+        }
+    }
+
 }

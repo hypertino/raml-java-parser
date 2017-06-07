@@ -55,12 +55,13 @@ public class NumberResolvedType extends XmlFacetsCapableType
 
     public NumberResolvedType(TypeExpressionNode from)
     {
-        super(from, new ResolvedCustomFacets(MINIMUM_KEY_NAME, MAXIMUM_KEY_NAME, MULTIPLE_OF_KEY_NAME, FORMAT_KEY_NAME));
+        super(getTypeName(from, TypeId.NUMBER.getType()), from, new ResolvedCustomFacets(MINIMUM_KEY_NAME, MAXIMUM_KEY_NAME, MULTIPLE_OF_KEY_NAME, FORMAT_KEY_NAME));
     }
 
-    public NumberResolvedType(TypeExpressionNode declarationNode, XmlFacets xmlFacets, Number minimum, Number maximum, Number multiple, String format, ResolvedCustomFacets customFacets)
+    public NumberResolvedType(String typeName, TypeExpressionNode declarationNode, XmlFacets xmlFacets, Number minimum, Number maximum, Number multiple, String format,
+            ResolvedCustomFacets customFacets)
     {
-        super(declarationNode, xmlFacets, customFacets);
+        super(typeName, declarationNode, xmlFacets, customFacets);
         this.minimum = minimum;
         this.maximum = maximum;
         this.multiple = multiple;
@@ -69,7 +70,7 @@ public class NumberResolvedType extends XmlFacetsCapableType
 
     public NumberResolvedType copy()
     {
-        return new NumberResolvedType(getTypeDeclarationNode(), getXmlFacets().copy(), minimum, maximum, multiple, format, customFacets.copy());
+        return new NumberResolvedType(getTypeName(), getTypeExpressionNode(), getXmlFacets().copy(), minimum, maximum, multiple, format, customFacets.copy());
     }
 
     @Override
@@ -146,14 +147,14 @@ public class NumberResolvedType extends XmlFacetsCapableType
         final ErrorNode errorNode = validateFacets();
         if (errorNode != null)
         {
-            getTypeDeclarationNode().replaceWith(errorNode);
+            getTypeExpressionNode().replaceWith(errorNode);
         }
     }
 
     public ErrorNode validateFacets()
     {
-        BigDecimal min = minimum != null ? new BigDecimal(minimum.toString()) : new BigDecimal(Double.MIN_VALUE);
-        BigDecimal max = maximum != null ? new BigDecimal(maximum.toString()) : new BigDecimal(Double.MAX_VALUE);
+        BigDecimal min = minimum != null ? new BigDecimal(minimum.toString()) : new BigDecimal(Integer.MIN_VALUE);
+        BigDecimal max = maximum != null ? new BigDecimal(maximum.toString()) : new BigDecimal(Integer.MAX_VALUE);
         BigDecimal mult = multiple != null ? new BigDecimal(multiple.toString()) : null;
 
         // Checking conflicts between the minimum and maximum facets if both are set
@@ -181,7 +182,7 @@ public class NumberResolvedType extends XmlFacetsCapableType
             {
                 return RamlErrorNodeFactory.createInvalidFacetState(
                         getTypeName(),
-                        "enum values must be between " + minimum + " and " + maximum);
+                        "enum values must be between " + min + " and " + max);
             }
 
             if (mult != null && value.remainder(mult).compareTo(BigDecimal.ZERO) != 0)

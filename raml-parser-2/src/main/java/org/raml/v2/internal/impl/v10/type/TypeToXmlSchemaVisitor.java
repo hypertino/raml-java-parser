@@ -52,8 +52,9 @@ import org.apache.ws.commons.schema.constants.Constants;
 import org.raml.v2.internal.impl.commons.type.JsonSchemaExternalType;
 import org.raml.v2.internal.impl.commons.type.ResolvedType;
 import org.raml.v2.internal.impl.commons.type.XmlSchemaExternalType;
+import org.raml.v2.internal.utils.xml.XMLChar;
 
-public class TypeToSchemaVisitor implements TypeVisitor<XmlSchemaType>
+public class TypeToXmlSchemaVisitor implements TypeVisitor<XmlSchemaType>
 {
     public static final long UNBOUNDED = Long.MAX_VALUE;
     private static final String DEFAULT_NAMESPACE = "http://validationnamespace.raml.org";
@@ -62,7 +63,7 @@ public class TypeToSchemaVisitor implements TypeVisitor<XmlSchemaType>
     private Stack<XmlSchemaElement> currentElement;
     private Map<String, XmlSchemaType> types;
 
-    public TypeToSchemaVisitor()
+    public TypeToXmlSchemaVisitor()
     {
         this.currentElement = new Stack<>();
         this.types = new HashMap<>();
@@ -200,7 +201,7 @@ public class TypeToSchemaVisitor implements TypeVisitor<XmlSchemaType>
                 {
 
                     final XmlFacets xmlFacets = ((XmlFacetsCapableType) valueResolvedType).getXmlFacets();
-                    final String name = defaultTo(xmlFacets.getName(), propertyDefinition.getName());
+                    final String name = defaultTo(xmlFacets.getName(), toValidSchemaName(propertyDefinition.getName()));
                     if (asBoolean(xmlFacets.getAttribute(), false))
                     {
                         final XmlSchemaAttribute xmlSchemaAttribute = new XmlSchemaAttribute(schema, false);
@@ -255,8 +256,38 @@ public class TypeToSchemaVisitor implements TypeVisitor<XmlSchemaType>
                 return null;
             }
         }
-        return typeName;
+        return toValidSchemaName(typeName);
     }
+
+    private String toValidSchemaName(String typeName)
+    {
+        String s = typeName;
+        StringBuilder sb = new StringBuilder();
+        if (!XMLChar.isNameStart(s.charAt(0)))
+        {
+            sb.append("_");
+        }
+        for (char c : s.toCharArray())
+        {
+            if (!XMLChar.isName(c))
+            {
+                if (c == '|')
+                {
+                    sb.append("or");
+                }
+                else
+                {
+                    sb.append("_");
+                }
+            }
+            else
+            {
+                sb.append(c);
+            }
+        }
+        return sb.toString();
+    }
+
 
     @Override
     public XmlSchemaType visitBoolean(BooleanResolvedType booleanTypeDefinition)

@@ -26,15 +26,20 @@ import org.raml.yagi.framework.suggester.ParsingContext;
 import org.raml.yagi.framework.suggester.Suggestion;
 import org.raml.v2.internal.impl.commons.type.XmlSchemaExternalType;
 import org.raml.v2.internal.utils.SchemaGenerator;
+import org.w3c.dom.Document;
+import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.xml.namespace.QName;
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamReader;
-import javax.xml.transform.stream.StreamSource;
+import javax.xml.transform.dom.DOMSource;
 import javax.xml.validation.Schema;
 import java.io.IOException;
 import java.io.StringReader;
@@ -45,6 +50,13 @@ import java.util.List;
  */
 public class XmlSchemaValidationRule extends Rule
 {
+    public static final String EXTERNAL_ENTITIES_PROPERTY = "raml.xml.expandExternalEntities";
+    public static final String EXPAND_ENTITIES_PROPERTY = "raml.xml.expandInternalEntities";
+
+    private static final Boolean externalEntities =
+            Boolean.parseBoolean(System.getProperty(EXTERNAL_ENTITIES_PROPERTY, "false"));
+    private static final Boolean expandEntities =
+            Boolean.parseBoolean(System.getProperty(EXPAND_ENTITIES_PROPERTY, "false"));
 
     private Schema schema;
     private String type;
@@ -104,13 +116,41 @@ public class XmlSchemaValidationRule extends Rule
                     return ErrorNodeFactory.createInvalidXmlExampleNode("Provided object is not of type " + this.type);
                 }
             }
-            schema.newValidator().validate(new StreamSource(new StringReader(value)));
+
+            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+            setFeatures(factory);
+
+            DocumentBuilder builder = factory.newDocumentBuilder();
+            builder.setErrorHandler(null);
+            Document document = builder.parse(new InputSource(new StringReader(value)));
+
+            schema.newValidator().validate(new DOMSource(document.getDocumentElement()));
         }
-        catch (XMLStreamException | SAXException | IOException e)
+        catch (XMLStreamException | SAXException | IOException | ParserConfigurationException e)
         {
             return ErrorNodeFactory.createInvalidXmlExampleNode(e.getMessage());
         }
         return node;
+    }
+
+    private void setFeatures(DocumentBuilderFactory dbf) throws ParserConfigurationException
+    {
+        String feature = null;
+
+        // If you can't completely disable DTDs, then at least do the following:
+        feature = "http://xml.org/sax/features/external-general-entities";
+        dbf.setFeature(feature, externalEntities);
+
+        feature = "http://xml.org/sax/features/external-parameter-entities";
+        dbf.setFeature(feature, externalEntities);
+
+        feature = "http://apache.org/xml/features/disallow-doctype-decl";
+        dbf.setFeature(feature, !expandEntities);
+
+        // and these as well, per Timothy Morgan's 2014 paper: "XML Schema, DTD, and Entity Attacks" (see reference below)
+        dbf.setXIncludeAware(expandEntities);
+        dbf.setExpandEntityReferences(expandEntities);
+        dbf.setNamespaceAware(true);
     }
 
     @Nullable

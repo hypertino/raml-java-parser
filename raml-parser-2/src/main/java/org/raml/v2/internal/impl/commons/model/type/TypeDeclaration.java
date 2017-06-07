@@ -31,6 +31,7 @@ import java.util.List;
 import javax.annotation.Nullable;
 
 import org.apache.ws.commons.schema.XmlSchema;
+import org.json.JSONObject;
 import org.raml.v2.api.loader.ResourceLoader;
 import org.raml.v2.internal.impl.commons.model.Annotable;
 import org.raml.v2.internal.impl.commons.model.RamlValidationResult;
@@ -44,7 +45,8 @@ import org.raml.v2.internal.impl.v10.nodes.NamedTypeExpressionNode;
 import org.raml.v2.internal.impl.v10.nodes.PropertyNode;
 import org.raml.v2.internal.impl.v10.phase.ExampleValidationPhase;
 import org.raml.v2.internal.impl.v10.type.AnyResolvedType;
-import org.raml.v2.internal.impl.v10.type.TypeToSchemaVisitor;
+import org.raml.v2.internal.impl.v10.type.TypeToJsonSchemaVisitor;
+import org.raml.v2.internal.impl.v10.type.TypeToXmlSchemaVisitor;
 import org.raml.v2.internal.impl.v10.type.XmlFacetsCapableType;
 import org.raml.yagi.framework.nodes.ArrayNode;
 import org.raml.yagi.framework.nodes.ErrorNode;
@@ -52,6 +54,7 @@ import org.raml.yagi.framework.nodes.KeyValueNode;
 import org.raml.yagi.framework.nodes.Node;
 import org.raml.yagi.framework.nodes.StringNode;
 import org.raml.yagi.framework.util.NodeSelector;
+import org.raml.yagi.framework.util.NodeUtils;
 
 public abstract class TypeDeclaration<T extends ResolvedType> extends Annotable<KeyValueNode>
 {
@@ -177,9 +180,10 @@ public abstract class TypeDeclaration<T extends ResolvedType> extends Annotable<
         final ResourceLoader resourceLoader = node.getStartPosition().getResourceLoader();
         final ExampleValidationPhase exampleValidationPhase = new ExampleValidationPhase(resourceLoader);
         final Node validate = exampleValidationPhase.validate(node, payload);
-        if (validate instanceof ErrorNode)
+        if (NodeUtils.isErrorResult(validate))
         {
-            return singletonList(new RamlValidationResult((ErrorNode) validate));
+            ErrorNode error = validate instanceof ErrorNode ? (ErrorNode) validate : validate.findDescendantsWith(ErrorNode.class).get(0);
+            return singletonList(new RamlValidationResult(error));
         }
         else
         {
@@ -223,12 +227,25 @@ public abstract class TypeDeclaration<T extends ResolvedType> extends Annotable<
         {
             return null;
         }
-        final TypeToSchemaVisitor typeToSchemaVisitor = new TypeToSchemaVisitor();
-        typeToSchemaVisitor.transform(rootElementName(), getResolvedType());
-        final XmlSchema schema = typeToSchemaVisitor.getSchema();
+        final TypeToXmlSchemaVisitor typeToXmlSchemaVisitor = new TypeToXmlSchemaVisitor();
+        typeToXmlSchemaVisitor.transform(rootElementName(), getResolvedType());
+        final XmlSchema schema = typeToXmlSchemaVisitor.getSchema();
         final StringWriter writer = new StringWriter();
         schema.write(writer);
         return writer.toString();
+    }
+
+    public String toJsonSchema()
+    {
+        if (getResolvedType() instanceof SchemaBasedResolvedType || getResolvedType() instanceof AnyResolvedType || getResolvedType() == null)
+        {
+            return null;
+        }
+
+        final TypeToJsonSchemaVisitor typeToJsonSchemaVisitor = new TypeToJsonSchemaVisitor();
+        JSONObject jsonSchema = typeToJsonSchemaVisitor.transform(this.getResolvedType());
+
+        return jsonSchema.toString();
     }
 
     public String rootElementName()

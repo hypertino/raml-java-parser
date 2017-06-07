@@ -349,6 +349,11 @@ public class Raml10Grammar extends BaseRamlGrammar
         return baseType(TypeId.STRING, DEFAULT_TYPE_RULE);
     }
 
+    public ObjectRule annotationTypeDeclaration()
+    {
+        return explicitType().with(allowedTargetsField());
+    }
+
     private ObjectRule baseType(final TypeId defaultType, final String ruleName)
     {
         return named(ruleName,
@@ -377,6 +382,8 @@ public class Raml10Grammar extends BaseRamlGrammar
                                                                                   .add(minLengthField())
                                                                                   .add(maxLengthField())
                                                                                   .add(enumField()),
+                                                           is(booleanTypeLiteral())
+                                                                                   .add(enumField()),
                                                            is(dateTimeTypeLiteral())
                                                                                     .add(formatField()),
                                                            is(arrayTypeLiteral())
@@ -389,13 +396,13 @@ public class Raml10Grammar extends BaseRamlGrammar
                                                                                    .add(maximumField(integerType()))
                                                                                    .add(numberFormat())
                                                                                    .add(enumField())
-                                                                                   .add(multipleOfField(integerType())),
+                                                                                   .add(multipleOfField(positiveIntegerType(false, Long.MAX_VALUE))),
                                                            is(numericTypeLiteral())
                                                                                    .add(minimumField(numberType()))
                                                                                    .add(maximumField(numberType()))
                                                                                    .add(numberFormat())
                                                                                    .add(enumField())
-                                                                                   .add(multipleOfField(numberType())),
+                                                                                   .add(multipleOfField(positiveNumberType())),
                                                            is(fileTypeLiteral())
                                                                                 .add(fileTypesField())
                                                                                 .add(minLengthField())
@@ -421,7 +428,7 @@ public class Raml10Grammar extends BaseRamlGrammar
                                                                                   .add(maxItemsField().matchValue())
                                                                                   .add(minimumField(numberType()).matchValue())
                                                                                   .add(maximumField(numberType()).matchValue())
-                                                                                  .add(multipleOfField(numberType()).matchValue())
+                                                                                  .add(multipleOfField(positiveNumberType()).matchValue())
                                                                                   .add(fileTypesField().matchValue())
                                                                                   .add(propertiesField().matchValue())
                                                                                   .add(minPropertiesField().matchValue())
@@ -488,16 +495,16 @@ public class Raml10Grammar extends BaseRamlGrammar
 
     public KeyValueRule maxPropertiesField()
     {
-        return field(string(MAX_PROPERTIES_KEY_NAME), integerType())
-                                                                    .then(FacetNode.class)
-                                                                    .description("The maximum number of properties allowed for instances of this type.");
+        return field(string(MAX_PROPERTIES_KEY_NAME), positiveIntegerType(true, (long) Integer.MAX_VALUE))
+                                                                                                          .then(FacetNode.class)
+                                                                                                          .description("The maximum number of properties allowed for instances of this type.");
     }
 
     public KeyValueRule minPropertiesField()
     {
-        return field(string(MIN_PROPERTIES_KEY_NAME), integerType())
-                                                                    .then(FacetNode.class)
-                                                                    .description("The minimum number of properties allowed for instances of this type.");
+        return field(string(MIN_PROPERTIES_KEY_NAME), positiveIntegerType(true, (long) Integer.MAX_VALUE))
+                                                                                                          .then(FacetNode.class)
+                                                                                                          .description("The minimum number of properties allowed for instances of this type.");
     }
 
     public KeyValueRule propertiesField()
@@ -546,16 +553,16 @@ public class Raml10Grammar extends BaseRamlGrammar
 
     public KeyValueRule maxItemsField()
     {
-        return field(string(MAX_ITEMS_KEY_NAME), integerType())
-                                                               .then(FacetNode.class)
-                                                               .description("Maximum amount of items in array. Value MUST be equal to or greater than 0.");
+        return field(string(MAX_ITEMS_KEY_NAME), positiveIntegerType(true, (long) Integer.MAX_VALUE))
+                                                                                                     .then(FacetNode.class)
+                                                                                                     .description("Maximum amount of items in array. Value MUST be equal to or greater than 0.");
     }
 
     public KeyValueRule minItemsField()
     {
-        return field(string(MIN_ITEMS_KEY_NAME), integerType())
-                                                               .then(FacetNode.class)
-                                                               .description("Minimum amount of items in array. Value MUST be equal to or greater than 0.");
+        return field(string(MIN_ITEMS_KEY_NAME), positiveIntegerType(true, (long) Integer.MAX_VALUE))
+                                                                                                     .then(FacetNode.class)
+                                                                                                     .description("Minimum amount of items in array. Value MUST be equal to or greater than 0.");
     }
 
     public KeyValueRule itemsField()
@@ -588,15 +595,16 @@ public class Raml10Grammar extends BaseRamlGrammar
 
     public KeyValueRule maxLengthField()
     {
-        return field(string(MAX_LENGTH_KEY_NAME), integerType())
-                                                                .then(FacetNode.class)
-                                                                .description("Maximum length of the string. Value MUST be equal to or greater than 0.");
+        return field(string(MAX_LENGTH_KEY_NAME), positiveIntegerType(true, (long) Integer.MAX_VALUE))
+                                                                                                      .then(FacetNode.class)
+                                                                                                      .description("Maximum length of the string. Value MUST be equal to or greater than 0.");
     }
 
     public KeyValueRule minLengthField()
     {
-        return field(string(MIN_LENGTH_KEY_NAME), integerType()).then(FacetNode.class)
-                                                                .description("Minimum length of the string. Value MUST be equal to or greater than 0.");
+        return field(string(MIN_LENGTH_KEY_NAME), positiveIntegerType(true, (long) Integer.MAX_VALUE))
+                                                                                                      .then(FacetNode.class)
+                                                                                                      .description("Minimum length of the string. Value MUST be equal to or greater than 0.");
     }
 
     public KeyValueRule patternField()
@@ -784,6 +792,11 @@ public class Raml10Grammar extends BaseRamlGrammar
     protected StringValueRule stringTypeLiteral()
     {
         return string("string");
+    }
+
+    protected StringValueRule booleanTypeLiteral()
+    {
+        return string("boolean");
     }
 
     private StringValueRule dateTimeTypeLiteral()

@@ -57,7 +57,6 @@ public interface ResolvedType
      * Returns the type name if any
      * @return The type name
      */
-    @Nullable
     String getTypeName();
 
     /**
@@ -73,7 +72,7 @@ public interface ResolvedType
      * The type declaration node that define this type
      * @return The node
      */
-    TypeExpressionNode getTypeDeclarationNode();
+    TypeExpressionNode getTypeExpressionNode();
 
     /**
      * Validate state consistency

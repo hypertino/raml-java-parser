@@ -16,6 +16,8 @@
 package org.raml.yagi.framework.grammar;
 
 import com.google.common.collect.Range;
+import org.apache.commons.lang.math.IntRange;
+import org.apache.commons.lang.math.LongRange;
 import org.raml.yagi.framework.grammar.rule.AllOfRule;
 import org.raml.yagi.framework.grammar.rule.AnyOfRule;
 import org.raml.yagi.framework.grammar.rule.AnyValueRule;
@@ -37,6 +39,7 @@ import org.raml.yagi.framework.grammar.rule.NullValueRule;
 import org.raml.yagi.framework.grammar.rule.NumberTypeRule;
 import org.raml.yagi.framework.grammar.rule.ObjectRule;
 import org.raml.yagi.framework.grammar.rule.ParentKeyDefaultValue;
+import org.raml.yagi.framework.grammar.rule.RangeValueRule;
 import org.raml.yagi.framework.grammar.rule.RegexValueRule;
 import org.raml.yagi.framework.grammar.rule.Rule;
 import org.raml.yagi.framework.grammar.rule.ScalarTypeRule;
@@ -184,7 +187,16 @@ public class BaseGrammar
      */
     public IntegerTypeRule integerType()
     {
-        return new IntegerTypeRule(null);
+        return new IntegerTypeRule();
+    }
+
+    /**
+     * Matches an integer greater than zero
+     * @return The rule
+     */
+    public IntegerTypeRule positiveIntegerType(boolean includesZero, Long maxValue)
+    {
+        return new IntegerTypeRule(Range.closed(includesZero ? 0L : 1L, maxValue));
     }
 
     /**
@@ -197,13 +209,21 @@ public class BaseGrammar
     }
 
     /**
-     * Matches a number that is Integer and is included in the range
-     * @param range The valid range
+     * Matches any number greater than zero
      * @return The rule
      */
-    public IntegerTypeRule range(Range<Integer> range)
+    public Rule positiveNumberType()
     {
-        return new IntegerTypeRule(range);
+        return new NumberTypeRule(Range.greaterThan(0D));
+    }
+
+    /**
+     * Matches a number that is Integer and is included in the range
+     * @return The rule
+     */
+    public RangeValueRule range(Integer min, Integer max)
+    {
+        return new RangeValueRule(new IntRange(min, max));
     }
 
     /**

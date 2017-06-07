@@ -15,10 +15,12 @@
  */
 package org.raml.yagi.framework.grammar.rule;
 
+import org.apache.commons.lang.math.Range;
 import org.raml.yagi.framework.nodes.FloatingNode;
 import org.raml.yagi.framework.nodes.IntegerNode;
 import org.raml.yagi.framework.nodes.Node;
 import org.raml.yagi.framework.nodes.SimpleTypeNode;
+import org.raml.yagi.framework.nodes.StringNode;
 import org.raml.yagi.framework.suggester.ParsingContext;
 import org.raml.yagi.framework.suggester.Suggestion;
 
@@ -30,13 +32,11 @@ import java.util.List;
 public class RangeValueRule extends Rule
 {
 
-    private Number maximumValue;
-    private Number minimumValue;
+    private Range range;
 
-    public RangeValueRule(Number minimumValue, Number maximumValue)
+    public RangeValueRule(Range range)
     {
-        this.minimumValue = minimumValue;
-        this.maximumValue = maximumValue;
+        this.range = range;
     }
 
     @Nonnull
@@ -49,25 +49,68 @@ public class RangeValueRule extends Rule
     @Override
     public boolean matches(@Nonnull Node node)
     {
-        if (node instanceof IntegerNode)
+        if (node instanceof IntegerNode || node instanceof FloatingNode)
         {
-            return ((IntegerNode) node).getValue().compareTo(minimumValue.intValue()) >= 0 &&
-                   ((IntegerNode) node).getValue().compareTo(maximumValue.intValue()) <= 0;
+            return true;
         }
-        return node instanceof FloatingNode && ((FloatingNode) node).getValue().compareTo(new BigDecimal(minimumValue.intValue())) >= 0 &&
-               ((FloatingNode) node).getValue().compareTo(new BigDecimal(maximumValue.intValue())) <= 0;
+        else if (node instanceof SimpleTypeNode)
+        {
+            try
+            {
+                Long.parseLong(((SimpleTypeNode) node).getLiteralValue());
+                return true;
+            }
+            catch (NumberFormatException ex)
+            {
+                return false;
+            }
+        }
+        else
+        {
+            return false;
+        }
     }
 
     @Override
     public Node apply(@Nonnull Node node)
     {
-        if (matches(node))
+        if (validate(node))
         {
             return createNodeUsingFactory(node, ((SimpleTypeNode) node).getValue());
         }
         else
         {
-            return ErrorNodeFactory.createInvalidRangeValue(minimumValue, maximumValue);
+            return ErrorNodeFactory.createInvalidRangeValue(node.toString(), range.getMinimumNumber(), range.getMaximumNumber());
+        }
+    }
+
+    private boolean validate(Node node)
+    {
+        if (node instanceof IntegerNode)
+        {
+            Long value = ((IntegerNode) node).getValue();
+            return range.containsLong(value);
+        }
+        else if (node instanceof FloatingNode)
+        {
+            BigDecimal value = ((FloatingNode) node).getValue();
+            return range.containsDouble(value.doubleValue());
+        }
+        else if (node instanceof SimpleTypeNode)
+        {
+            try
+            {
+                long parseLong = Long.parseLong(((StringNode) node).getValue());
+                return range.containsLong(parseLong);
+            }
+            catch (NumberFormatException ex)
+            {
+                return false;
+            }
+        }
+        else
+        {
+            return false;
         }
     }
 

@@ -37,7 +37,13 @@ public class UnionResolvedType extends BaseType
 
     public UnionResolvedType(TypeExpressionNode typeNode, List<ResolvedType> of, ResolvedCustomFacets customFacets)
     {
-        super(typeNode, customFacets);
+        this(getTypeName(typeNode, defaultName(of)), typeNode, of, customFacets);
+    }
+
+
+    public UnionResolvedType(String name, TypeExpressionNode typeNode, List<ResolvedType> of, ResolvedCustomFacets customFacets)
+    {
+        super(name, typeNode, customFacets);
         this.of = of;
     }
 
@@ -46,19 +52,40 @@ public class UnionResolvedType extends BaseType
         return of;
     }
 
+    static String defaultName(List<ResolvedType> of)
+    {
+        StringBuilder result = new StringBuilder();
+        for (ResolvedType resolvedType : of)
+        {
+            if (result.length() == 0)
+            {
+                result = new StringBuilder(resolvedType.getTypeName());
+            }
+            else
+            {
+                result.append(" | ").append(resolvedType.getTypeName());
+            }
+        }
+        return result.toString();
+    }
+
     protected UnionResolvedType copy()
     {
-        return new UnionResolvedType(getTypeDeclarationNode(), new ArrayList<>(of), customFacets.copy());
+        return new UnionResolvedType(getTypeName(), getTypeExpressionNode(), new ArrayList<>(of), customFacets.copy());
     }
 
     @Override
     public ResolvedType overwriteFacets(TypeDeclarationNode from)
     {
         final List<ResolvedType> result = new ArrayList<>();
-        final List<ResolvedType> of = of();
-        for (ResolvedType resolvedType : of)
+        for (ResolvedType resolvedType : of())
         {
-            result.add(resolvedType.overwriteFacets(from));
+            ResolvedType overwriteFacets = resolvedType.overwriteFacets(from);
+            if (overwriteFacets instanceof BaseType)
+            {
+                ((BaseType) overwriteFacets).setTypeName(resolvedType.getTypeName());
+            }
+            result.add(overwriteFacets);
         }
         return new UnionResolvedType(from, result, customFacets.overwriteFacets(from));
     }
@@ -112,7 +139,7 @@ public class UnionResolvedType extends BaseType
     @Override
     public void validateState()
     {
-        final Node parent = getTypeDeclarationNode().getParent();
+        final Node parent = getTypeExpressionNode().getParent();
         for (ResolvedType resolvedType : of)
         {
             if (parent.findDescendantsWith(ErrorNode.class).isEmpty())
@@ -125,7 +152,7 @@ public class UnionResolvedType extends BaseType
         {
             if (resolvedType instanceof SchemaBasedResolvedType)
             {
-                getTypeDeclarationNode().replaceWith(RamlErrorNodeFactory.createInvalidFacetState(resolvedType.getTypeName(), "union type cannot be of an external type"));
+                getTypeExpressionNode().replaceWith(RamlErrorNodeFactory.createInvalidFacetState(resolvedType.getTypeName(), "union type cannot be of an external type"));
             }
         }
     }
@@ -143,6 +170,6 @@ public class UnionResolvedType extends BaseType
             }
         }
 
-        return new UnionResolvedType(getTypeDeclarationNode(), combination, customFacets);
+        return new UnionResolvedType(getTypeExpressionNode(), combination, customFacets);
     }
 }

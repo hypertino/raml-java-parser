@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 
+import org.apache.commons.lang.math.NumberRange;
 import org.raml.v2.api.loader.ResourceLoader;
 import org.raml.v2.internal.impl.commons.nodes.TypeExpressionNode;
 import org.raml.v2.internal.impl.commons.rule.JsonSchemaValidationRule;
@@ -141,7 +142,7 @@ public class TypeToRuleVisitor implements TypeVisitor<Rule>
         if (!resolvingDiscriminator && isNotEmpty(objectTypeDefinition.getDiscriminator()))
         {
             resolvingDiscriminator = false;
-            final TypeExpressionNode typeDeclarationNode = objectTypeDefinition.getTypeDeclarationNode();
+            final TypeExpressionNode typeDeclarationNode = objectTypeDefinition.getTypeExpressionNode();
             return new DiscriminatorBasedRule(this, typeDeclarationNode.getRootNode(), objectTypeDefinition.getDiscriminator());
         }
         else
@@ -229,7 +230,7 @@ public class TypeToRuleVisitor implements TypeVisitor<Rule>
         registerRule(numericTypeNode, typeRule);
         if (numericTypeNode.getMinimum() != null && numericTypeNode.getMaximum() != null)
         {
-            typeRule.and(new RangeValueRule(numericTypeNode.getMinimum(), numericTypeNode.getMaximum()));
+            typeRule.and(new RangeValueRule(new NumberRange(numericTypeNode.getMinimum(), numericTypeNode.getMaximum())));
         }
         else if (numericTypeNode.getMinimum() != null)
         {
