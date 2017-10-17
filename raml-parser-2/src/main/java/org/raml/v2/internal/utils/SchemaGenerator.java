@@ -25,6 +25,7 @@ import java.io.IOException;
 import java.io.StringReader;
 import java.util.List;
 
+import javax.annotation.Nullable;
 import javax.xml.XMLConstants;
 import javax.xml.transform.stream.StreamSource;
 import javax.xml.validation.Schema;
@@ -32,21 +33,25 @@ import javax.xml.validation.SchemaFactory;
 
 import org.raml.v2.api.loader.ResourceLoader;
 import org.raml.v2.internal.impl.commons.nodes.ExternalSchemaTypeExpressionNode;
+import org.raml.v2.internal.impl.commons.nodes.TypeDeclarationNode;
 import org.raml.v2.internal.impl.commons.nodes.TypeExpressionNode;
 import org.raml.v2.internal.impl.commons.type.JsonSchemaExternalType;
+import org.raml.v2.internal.impl.commons.type.ResolvedType;
 import org.raml.v2.internal.impl.commons.type.XmlSchemaExternalType;
 import org.raml.v2.internal.impl.v10.nodes.NamedTypeExpressionNode;
 import org.raml.v2.internal.utils.xml.XsdResourceResolver;
+import org.raml.yagi.framework.util.NodeUtils;
 import org.xml.sax.SAXException;
 
 public class SchemaGenerator
 {
 
-    public static Schema generateXmlSchema(ResourceLoader resourceLoader, XmlSchemaExternalType schemaNode) throws SAXException
+    public static Schema generateXmlSchema(ResourceLoader resourceLoader, XmlSchemaExternalType xmlTypeDefinition) throws SAXException
     {
         SchemaFactory factory = SchemaFactory.newInstance(XMLConstants.W3C_XML_SCHEMA_NS_URI);
-        factory.setResourceResolver(new XsdResourceResolver(resourceLoader, schemaNode.getSchemaPath()));
-        return factory.newSchema(new StreamSource(new StringReader(schemaNode.getSchemaValue())));
+        factory.setResourceResolver(new XsdResourceResolver(resourceLoader, xmlTypeDefinition.getSchemaPath()));
+        String includedResourceUri = resolveResourceUriIfIncluded(xmlTypeDefinition);
+        return factory.newSchema(new StreamSource(new StringReader(xmlTypeDefinition.getSchemaValue()), includedResourceUri));
     }
 
     public static JsonSchema generateJsonSchema(JsonSchemaExternalType jsonTypeDefinition) throws IOException, ProcessingException
@@ -54,7 +59,7 @@ public class SchemaGenerator
         String includedResourceUri = resolveResourceUriIfIncluded(jsonTypeDefinition);
 
         JsonNode jsonSchema = JsonLoader.fromString(jsonTypeDefinition.getSchemaValue());
-        JsonSchemaFactory factory = JsonSchemaFactory.newBuilder().freeze();
+        JsonSchemaFactory factory = JsonSchemaFactory.byDefault();
         if (jsonTypeDefinition.getInternalFragment() != null)
         {
             return factory.getJsonSchema(jsonSchema, "/definitions/" + jsonTypeDefinition.getInternalFragment());
@@ -73,40 +78,41 @@ public class SchemaGenerator
         }
     }
 
-    private static String resolveResourceUriIfIncluded(JsonSchemaExternalType jsonTypeDefinition)
+    @Nullable
+    private static String resolveResourceUriIfIncluded(ResolvedType typeDefinition)
     {
         // Getting the type holding the schema
-        TypeExpressionNode typeDeclarationNode = jsonTypeDefinition.getTypeExpressionNode();
+        TypeExpressionNode typeExpressionNode = typeDefinition.getTypeExpressionNode();
 
-        if (typeDeclarationNode instanceof ExternalSchemaTypeExpressionNode)
+        if (typeExpressionNode instanceof ExternalSchemaTypeExpressionNode)
         {
-            ExternalSchemaTypeExpressionNode schema = (ExternalSchemaTypeExpressionNode) typeDeclarationNode;
+            final ExternalSchemaTypeExpressionNode schema = (ExternalSchemaTypeExpressionNode) typeExpressionNode;
 
-            return schema.getStartPosition().getIncludedResourceUri();
+            return getIncludedResourceUri(schema);
         }
         else
         {
             // Inside the type declaration, we find the node containing the schema itself
-            List<ExternalSchemaTypeExpressionNode> schemas = typeDeclarationNode.findDescendantsWith(ExternalSchemaTypeExpressionNode.class);
+            List<ExternalSchemaTypeExpressionNode> schemas = typeExpressionNode.findDescendantsWith(ExternalSchemaTypeExpressionNode.class);
             if (schemas.size() > 0)
             {
-                return schemas.get(0).getStartPosition().getIncludedResourceUri();
+                return getIncludedResourceUri(schemas.get(0));
             }
             else
             {
                 // If the array is empty, then it must be a reference to a previously defined type
-                List<NamedTypeExpressionNode> refNode = typeDeclarationNode.findDescendantsWith(NamedTypeExpressionNode.class);
+                List<NamedTypeExpressionNode> refNode = typeExpressionNode.findDescendantsWith(NamedTypeExpressionNode.class);
 
                 if (refNode.size() > 0)
                 {
                     // If refNodes is not empty, then we obtain that type
-                    typeDeclarationNode = refNode.get(0).resolveReference();
-                    if (typeDeclarationNode != null)
+                    typeExpressionNode = refNode.get(0).resolveReference();
+                    if (typeExpressionNode != null)
                     {
-                        schemas = typeDeclarationNode.findDescendantsWith(ExternalSchemaTypeExpressionNode.class);
+                        schemas = typeExpressionNode.findDescendantsWith(ExternalSchemaTypeExpressionNode.class);
                         if (schemas.size() > 0)
                         {
-                            return schemas.get(0).getStartPosition().getIncludedResourceUri();
+                            return getIncludedResourceUri(schemas.get(0));
                         }
                     }
                 }
@@ -114,6 +120,20 @@ public class SchemaGenerator
         }
 
         return null;
+    }
+
+    private static String getIncludedResourceUri(ExternalSchemaTypeExpressionNode schemaNode)
+    {
+        final String includedResourceUri = schemaNode.getStartPosition().getIncludedResourceUri();
+
+        if (includedResourceUri == null)
+        {
+            final TypeDeclarationNode parentTypeDeclaration = NodeUtils.getAncestor(schemaNode, TypeDeclarationNode.class);
+            if (parentTypeDeclaration != null)
+                return parentTypeDeclaration.getStartPosition().getIncludedResourceUri();
+        }
+
+        return includedResourceUri;
     }
 
 
