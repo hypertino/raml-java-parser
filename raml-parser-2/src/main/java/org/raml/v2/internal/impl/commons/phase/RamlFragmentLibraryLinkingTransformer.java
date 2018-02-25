@@ -15,13 +15,27 @@
  */
 package org.raml.v2.internal.impl.commons.phase;
 
-import org.raml.v2.internal.impl.commons.RamlHeader;
-import org.raml.yagi.framework.grammar.rule.Rule;
+import org.raml.v2.api.loader.ResourceLoader;
+import org.raml.v2.internal.impl.v10.Raml10Builder;
+import org.raml.v2.internal.impl.v10.phase.LibraryLinkingTransformation;
 import org.raml.yagi.framework.nodes.Node;
+import org.raml.yagi.framework.phase.TransformationPhase;
 import org.raml.yagi.framework.phase.Transformer;
 
-public class RamlFragmentGrammarTransformer implements Transformer
+import static org.raml.v2.internal.utils.PhaseUtils.applyPhases;
+
+public class RamlFragmentLibraryLinkingTransformer implements Transformer
 {
+
+    private final Raml10Builder builder;
+    private final ResourceLoader resourceLoader;
+
+    public RamlFragmentLibraryLinkingTransformer(Raml10Builder builder, ResourceLoader resourceLoader)
+    {
+        this.builder = builder;
+        this.resourceLoader = resourceLoader;
+    }
+
     @Override
     public boolean matches(Node node)
     {
@@ -31,8 +45,11 @@ public class RamlFragmentGrammarTransformer implements Transformer
     @Override
     public Node transform(Node node)
     {
-        final RamlTypedFragment ramlTypedFragmentNode = (RamlTypedFragment) node;
-        final Rule rule = RamlHeader.getFragmentRule(ramlTypedFragmentNode.getFragment());
-        return rule.apply(node);
+        Node apply = applyPhases(node, new TransformationPhase(new LibraryLinkingTransformation(builder, resourceLoader)));
+
+        // Hack!!!!
+        ((RamlTypedFragment) apply).resolveLibraryReference();
+
+        return apply;
     }
 }
